@@ -1,6 +1,25 @@
-# PulseDock
+<h1 align="center">PulseDock</h1>
 
-[中文](#中文) | [English](#english)
+<p align="center">
+  <strong>Local-first macOS menu bar performance monitor</strong>
+</p>
+
+<p align="center">
+  Understand CPU, memory, disk, network, processes, battery, thermal state, and system pressure from one quiet dashboard.
+</p>
+
+<p align="center">
+  <img alt="macOS" src="https://img.shields.io/badge/macOS-13%2B-111111?style=for-the-badge&logo=apple&logoColor=white">
+  <img alt="Swift" src="https://img.shields.io/badge/Swift-6.2-F05138?style=for-the-badge&logo=swift&logoColor=white">
+  <img alt="SwiftUI" src="https://img.shields.io/badge/SwiftUI-Desktop%20%2B%20Menu%20Bar-0A84FF?style=for-the-badge">
+  <img alt="Privacy" src="https://img.shields.io/badge/Privacy-No%20Telemetry-34C759?style=for-the-badge">
+</p>
+
+<p align="center">
+  <a href="#中文">中文</a> | <a href="#english">English</a>
+</p>
+
+---
 
 ## 中文
 
