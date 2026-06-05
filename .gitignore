@@ -1,0 +1,5 @@
+.build/
+.swiftpm/
+.learnings/
+.DS_Store
+**/.DS_Store
