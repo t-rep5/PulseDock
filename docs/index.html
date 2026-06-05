@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="PulseDock 是一个本地优先的 macOS 菜单栏性能诊断工具，用健康分数和一句话诊断解释 Mac 为什么变卡。">
+  <meta property="og:title" content="PulseDock - macOS 性能诊断工具">
+  <meta property="og:description" content="本地优先、无遥测、无账号，用安静的菜单栏仪表盘解释当前性能压力。">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="assets/pulsedock-icon.png">
+  <title>PulseDock - macOS 性能诊断工具</title>
+  <link rel="icon" href="assets/pulsedock-icon.png">
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    (() => {
+      const savedTheme = localStorage.getItem("pulsedock-theme") || "system";
+      document.documentElement.dataset.theme = savedTheme;
+    })();
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="PulseDock 首页">
+      <img src="assets/pulsedock-icon.png" alt="" width="34" height="34">
+      <span>PulseDock</span>
+    </a>
+    <div class="header-tools">
+      <nav aria-label="主导航">
+        <a href="#features">功能</a>
+        <a href="#privacy">隐私</a>
+        <a href="#download">下载</a>
+        <a href="#github">GitHub</a>
+      </nav>
+      <div class="theme-switch" aria-label="主题切换">
+        <button type="button" data-theme-choice="system" aria-label="跟随系统主题">系统</button>
+        <button type="button" data-theme-choice="light" aria-label="切换到白天模式">白天</button>
+        <button type="button" data-theme-choice="dark" aria-label="切换到黑夜模式">黑夜</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">macOS 13+ · SwiftUI · Local-first</p>
+        <h1>用一句话解释<br><span class="nowrap">Mac 为什么变卡。</span></h1>
+        <p class="lead">PulseDock 常驻菜单栏，查看 CPU、内存、磁盘、网络、进程、电池和热状态，并把当前性能压力整理成可读的诊断结论。</p>
+        <div class="actions">
+          <a class="button primary" href="https://github.com/t-rep5/PulseDock/releases/tag/v0.1.0">下载 0.1.0</a>
+          <a class="button secondary" href="https://github.com/t-rep5/PulseDock">查看源码</a>
+        </div>
+        <dl class="quick-stats" aria-label="PulseDock 特性摘要">
+          <div>
+            <dt>本地</dt>
+            <dd>采样和历史留在本机</dd>
+          </div>
+          <div>
+            <dt>诊断</dt>
+            <dd>先解释卡顿来源</dd>
+          </div>
+          <div>
+            <dt>开源</dt>
+            <dd>SwiftPM 项目结构</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div class="product-stage" aria-label="PulseDock 产品界面预览">
+        <div class="mock-window">
+          <div class="mock-titlebar">
+            <span class="dot red"></span>
+            <span class="dot yellow"></span>
+            <span class="dot green"></span>
+            <span class="window-title">PulseDock</span>
+          </div>
+          <div class="mock-content">
+            <aside class="mock-sidebar">
+              <div class="mock-brand">
+                <img src="assets/pulsedock-icon.png" alt="" width="28" height="28">
+                <div>
+                  <strong>PulseDock</strong>
+                  <span>本地诊断</span>
+                </div>
+              </div>
+              <span class="nav-pill active">主页</span>
+              <span class="nav-pill">进程</span>
+              <span class="nav-pill">指标</span>
+              <span class="nav-pill">设置</span>
+              <div class="sidebar-score">
+                <span>健康</span>
+                <strong>57</strong>
+                <small>明显性能压力</small>
+              </div>
+            </aside>
+            <section class="mock-dashboard">
+              <div class="mock-heading">
+                <div>
+                  <h2>主页</h2>
+                  <p>先判断当前压力来源，再查看关键指标。</p>
+                </div>
+                <span class="badge">arm64</span>
+              </div>
+              <div class="diagnosis-grid">
+                <div class="health-card">
+                  <div class="ring"><span>57</span></div>
+                  <div>
+                    <h3>明显性能压力</h3>
+                    <p>Swap 偏高，当前卡顿更可能来自内存压力。</p>
+                    <code>MEM 64% · Swap 2.94 GB</code>
+                  </div>
+                </div>
+                <div class="pressure-card">
+                  <h3>资源压力</h3>
+                  <div class="bar-row"><span>CPU</span><strong>14%</strong><i style="--value:14%;--color:#22c55e"></i></div>
+                  <div class="bar-row"><span>内存</span><strong>64%</strong><i style="--value:64%;--color:#f59e0b"></i></div>
+                  <div class="bar-row"><span>Swap</span><strong>2.94 GB</strong><i style="--value:52%;--color:#ef4444"></i></div>
+                  <div class="bar-row"><span>磁盘</span><strong>59 KB/s</strong><i style="--value:20%;--color:#f97316"></i></div>
+                </div>
+              </div>
+              <div class="mini-grid">
+                <div><span>热状态</span><strong>正常</strong></div>
+                <div><span>电源</span><strong>电源供电</strong></div>
+                <div><span>今日下载</span><strong>3.2 MB</strong></div>
+                <div><span>风扇</span><strong>不可用</strong></div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="features">
+      <div class="section-heading">
+        <p class="eyebrow">Features</p>
+        <h2>把分散指标整理成更好读的判断。</h2>
+        <p>PulseDock 把常见指标压缩成诊断、证据和低风险建议，适合开发者和重度 Mac 用户日常常驻。</p>
+      </div>
+      <div class="feature-grid">
+        <article>
+          <span class="icon">01</span>
+          <h3>一句话诊断</h3>
+          <p>根据 CPU、内存、Swap、压缩内存和进程压力生成健康分数与诊断结论。</p>
+        </article>
+        <article>
+          <span class="icon">02</span>
+          <h3>开发者进程识别</h3>
+          <p>识别 IDEA、Java、Gradle、Xcode、Docker、Node、Chrome、Codex 等常见开发负载。</p>
+        </article>
+        <article>
+          <span class="icon">03</span>
+          <h3>菜单栏 + 桌面端</h3>
+          <p>紧凑弹窗适合快速查看，桌面端提供进程详情、指标分组、设置和关于页面。</p>
+        </article>
+        <article>
+          <span class="icon">04</span>
+          <h3>本地趋势历史</h3>
+          <p>保存本地短期趋势，支持开关、保留时间和清除历史，不上传性能数据。</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="privacy-band" id="privacy">
+      <div>
+        <p class="eyebrow">Privacy</p>
+        <h2>本地优先，没有账号，也没有遥测。</h2>
+      </div>
+      <p>PulseDock 只在本机采集性能诊断所需信息。历史趋势保存在本机，关闭历史记录或清除历史后会停止写入并移除本地样本。</p>
+    </section>
+
+    <section class="section release" id="download">
+      <div class="section-heading">
+        <p class="eyebrow">0.1.0</p>
+        <h2>初版适合尝鲜和本地构建。</h2>
+        <p>当前版本尚未签名和公证，硬件传感器会谨慎显示不可用，不伪造温度、GPU 或风扇数据。</p>
+      </div>
+      <div class="release-card">
+        <div>
+          <h3>系统要求</h3>
+          <p>macOS 13 Ventura 或更新版本。当前 DMG 主要面向 Apple Silicon Mac 构建。</p>
+        </div>
+        <div>
+          <h3>安装方式</h3>
+          <p>下载 DMG 后，将 PulseDock.app 拖到 Applications，再从应用程序启动。</p>
+        </div>
+        <a class="button primary" href="https://github.com/t-rep5/PulseDock/releases/tag/v0.1.0">前往 Release</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer" id="github">
+    <div class="footer-copy">
+      <p>© 2026 PulseDock Project. Open-source macOS performance monitor.</p>
+      <p>Built for local diagnosis. No account, no telemetry, no cloud upload.</p>
+    </div>
+    <div class="footer-social" aria-label="相关链接">
+      <a href="https://github.com/t-rep5/PulseDock" aria-label="GitHub">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.77.6-3.36-1.19-3.36-1.19-.45-1.15-1.1-1.46-1.1-1.46-.9-.61.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.64.35-1.08.63-1.33-2.21-.25-4.54-1.1-4.54-4.91 0-1.08.39-1.97 1.03-2.66-.1-.25-.45-1.27.1-2.63 0 0 .84-.27 2.75 1.02A9.56 9.56 0 0 1 12 6.07c.85 0 1.7.11 2.5.34 1.9-1.29 2.74-1.02 2.74-1.02.55 1.36.2 2.38.1 2.63.64.69 1.03 1.58 1.03 2.66 0 3.82-2.33 4.66-4.55 4.91.36.31.68.92.68 1.86v2.76c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"></path>
+        </svg>
+      </a>
+      <span aria-label="Google">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M21.6 12.23c0-.74-.07-1.45-.19-2.13H12v4.03h5.38a4.6 4.6 0 0 1-2 3.02v2.51h3.24c1.9-1.75 2.98-4.32 2.98-7.43Z"></path>
+          <path d="M12 22c2.7 0 4.97-.9 6.62-2.44l-3.24-2.51c-.9.6-2.04.95-3.38.95-2.6 0-4.8-1.76-5.59-4.12H3.07v2.6A10 10 0 0 0 12 22Z"></path>
+          <path d="M6.41 13.88A6 6 0 0 1 6.1 12c0-.65.11-1.28.31-1.88v-2.6H3.07A10 10 0 0 0 2 12c0 1.61.39 3.14 1.07 4.48l3.34-2.6Z"></path>
+          <path d="M12 6c1.47 0 2.79.5 3.82 1.5l2.87-2.87A9.62 9.62 0 0 0 12 2a10 10 0 0 0-8.93 5.52l3.34 2.6C7.2 7.76 9.4 6 12 6Z"></path>
+        </svg>
+      </span>
+      <span aria-label="Docker">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M13.1 8.3h2.2v2.2h1.1c.7 0 1.42-.13 2.08-.38.32-.12.68-.29 1.02-.5-.45-.58-.68-1.31-.74-2.04-.08-.95.1-2.19.89-2.9l.38-.34.4.32a4.88 4.88 0 0 1 1.82 3.25c1.08.32 1.87 1.1 2.25 2.29l.14.43-.42.18c-.67.29-1.4.33-2.12.23-1.08 2.68-3.42 4.05-5.9 4.05H7.76c-2.22 0-4.02-1.12-5-3.14l-.17-.36.34-.22c.83-.54 1.9-.75 2.94-.64V8.3h2.2V6.1h2.2V3.9h2.2v2.2h2.2v2.2h-1.57Zm-6.6 0v2.2h1.57V8.3H6.5Zm2.2 2.2h2.2V8.3H8.7v2.2Zm2.83 0h2.2V8.3h-2.2v2.2Zm-2.83-2.83h2.2v-2.2H8.7v2.2Zm2.83 0h2.2v-2.2h-2.2v2.2Z"></path>
+        </svg>
+      </span>
+      <span aria-label="Chat">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 3C6.92 3 3 6.55 3 11.1c0 2.47 1.16 4.66 2.98 6.15L5.2 21l4.35-2.03c.78.16 1.6.24 2.45.24 5.08 0 9-3.55 9-8.1S17.08 3 12 3Zm0 1.8c4.08 0 7.2 2.76 7.2 6.3s-3.12 6.3-7.2 6.3c-.85 0-1.66-.12-2.4-.36l-.33-.1-1.57.73.27-1.33-.54-.43A6 6 0 0 1 4.8 11.1c0-3.54 3.12-6.3 7.2-6.3Z"></path>
+        </svg>
+      </span>
+      <span aria-label="Product">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-2.8 5.8h3.7c2.13 0 3.6 1.28 3.6 3.24 0 2.02-1.47 3.3-3.6 3.3h-1.63V17H9.2V7.8Zm2.07 1.78v2.98h1.48c1.04 0 1.63-.54 1.63-1.5 0-.93-.6-1.48-1.63-1.48h-1.48Z"></path>
+        </svg>
+      </span>
+    </div>
+  </footer>
+  <script>
+    (() => {
+      const buttons = document.querySelectorAll("[data-theme-choice]");
+      const applyTheme = (theme) => {
+        document.documentElement.dataset.theme = theme;
+        localStorage.setItem("pulsedock-theme", theme);
+        buttons.forEach((button) => {
+          const active = button.dataset.themeChoice === theme;
+          button.classList.toggle("active", active);
+          button.setAttribute("aria-pressed", String(active));
+        });
+      };
+
+      applyTheme(localStorage.getItem("pulsedock-theme") || "system");
+      buttons.forEach((button) => {
+        button.addEventListener("click", () => applyTheme(button.dataset.themeChoice));
+      });
+    })();
+  </script>
+</body>
+</html>
