@@ -86,26 +86,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func updateMenuBarTitle() {
         let snapshot = appModel.snapshot
         let title: String
-        let imageName: String?
+        let image: NSImage?
 
         switch appModel.settings.menuBarMode {
         case .iconOnly:
             title = ""
-            imageName = "waveform.path.ecg"
+            image = menuBarAppIcon()
         case .compactMetrics:
             title = "CPU \(snapshot.cpuUsage.percentText)  MEM \(snapshot.memory.usedRatio.percentText)"
-            imageName = nil
+            image = nil
         case .network:
             title = "↓\(snapshot.network.downloadBytesPerSecond.byteCount) ↑\(snapshot.network.uploadBytesPerSecond.byteCount)"
-            imageName = nil
+            image = nil
         case .pressure:
             title = appModel.diagnosis.status == .good ? "OK" : appModel.diagnosis.status.label(language: appModel.settings.language)
-            imageName = nil
+            image = nil
         }
 
         statusItem?.button?.title = title
-        statusItem?.button?.image = imageName.map { NSImage(systemSymbolName: $0, accessibilityDescription: "PulseDock") } ?? nil
+        statusItem?.button?.image = image
         statusItem?.button?.font = .monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+    }
+
+    private func menuBarAppIcon() -> NSImage? {
+        let image = NSImage(size: NSSize(width: 20, height: 18), flipped: false) { rect in
+            let path = NSBezierPath()
+            let midY = rect.midY
+            let width = rect.width
+            let height = rect.height
+
+            path.move(to: NSPoint(x: rect.minX + width * 0.05, y: midY))
+            path.line(to: NSPoint(x: rect.minX + width * 0.22, y: midY))
+            path.line(to: NSPoint(x: rect.minX + width * 0.33, y: midY + height * 0.28))
+            path.line(to: NSPoint(x: rect.minX + width * 0.46, y: midY - height * 0.32))
+            path.line(to: NSPoint(x: rect.minX + width * 0.58, y: midY + height * 0.43))
+            path.line(to: NSPoint(x: rect.minX + width * 0.72, y: midY))
+            path.line(to: NSPoint(x: rect.maxX - width * 0.05, y: midY))
+
+            path.lineWidth = 2.4
+            path.lineCapStyle = .round
+            path.lineJoinStyle = .round
+            NSColor.white.setStroke()
+            path.stroke()
+            return true
+        }
+        image.isTemplate = true
+        return image
     }
 
     @objc private func handleStatusItemClick() {
@@ -152,6 +178,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     @objc func showDashboardWindow(_ sender: Any?) {
+        NSApp.setActivationPolicy(.regular)
+
         if dashboardWindow == nil {
             let controller = NSHostingController(
                 rootView: DesktopDashboardView()
@@ -162,8 +190,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             let window = NSWindow(contentViewController: controller)
             window.title = "PulseDock"
             window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-            window.minSize = NSSize(width: 1040, height: 700)
-            window.setContentSize(NSSize(width: 1120, height: 760))
+            window.minSize = NSSize(width: 1280, height: 780)
+            window.setContentSize(NSSize(width: 1440, height: 900))
             window.isReleasedWhenClosed = false
             window.delegate = self
             window.center()
@@ -177,6 +205,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         if notification.object as? NSWindow === dashboardWindow {
             popover?.performClose(nil)
+            NSApp.setActivationPolicy(.accessory)
         }
     }
 

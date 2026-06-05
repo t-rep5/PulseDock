@@ -31,11 +31,7 @@ private struct HeaderView: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: "waveform.path.ecg")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 26, height: 26)
-                .background(DashboardPalette.info, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            PulseDockIconMark(size: 26)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text("PulseDock")

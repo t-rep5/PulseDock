@@ -37,7 +37,7 @@ PulseDock runs locally by default: no account, no telemetry, no cloud sync, and 
 open .build/PulseDock.app
 ```
 
-The app runs as a menu bar utility without a Dock icon. It opens the desktop dashboard on launch and keeps a menu bar status item.
+The app keeps a menu bar status item. When the desktop dashboard is open, PulseDock also shows a Dock icon; after the desktop window is closed, it returns to menu bar mode.
 
 - Left-click the menu bar icon: open the compact diagnostic popover
 - Right-click the menu bar icon: open the desktop overview or quit the app

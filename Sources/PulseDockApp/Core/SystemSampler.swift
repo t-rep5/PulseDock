@@ -20,7 +20,7 @@ final class SystemSampler: @unchecked Sendable {
         let memory = sampleMemory()
         return SystemSnapshot(
             sampledAt: Date(),
-            computer: computerSnapshot,
+            computer: currentComputerSnapshot(),
             cpuUsage: sampleCPUUsage(),
             loadAverage: sampleLoadAverage(),
             memory: memory,
@@ -33,6 +33,12 @@ final class SystemSampler: @unchecked Sendable {
             fan: sampleFan(),
             processes: sampleProcesses()
         )
+    }
+
+    private func currentComputerSnapshot() -> ComputerSnapshot {
+        var snapshot = computerSnapshot
+        snapshot.uptimeSeconds = ProcessInfo.processInfo.systemUptime
+        return snapshot
     }
 
     private func sampleComputer(totalMemoryBytes: UInt64) -> ComputerSnapshot {
@@ -221,8 +227,10 @@ final class SystemSampler: @unchecked Sendable {
         var nextProcessTimes: [Int32: UInt64] = [:]
         let psCPUPercentages = sampleProcessCPUPercentages()
 
-        let snapshots = processIDs().compactMap { pid -> ProcessSnapshot? in
-            guard let usage = processUsage(pid: pid) else { return nil }
+        let summaries = processSummaries()
+        let snapshots = summaries.compactMap { summary -> ProcessSnapshot? in
+            let pid = summary.pid
+            guard let usage = processUsage(summary: summary, sampledAt: now) else { return nil }
 
             nextProcessTimes[pid] = usage.cpuTimeNanoseconds
             let previousTime = previousProcessTimes[pid]
@@ -238,9 +246,14 @@ final class SystemSampler: @unchecked Sendable {
 
             return ProcessSnapshot(
                 pid: pid,
+                parentPID: usage.parentPID,
                 name: usage.name,
                 cpuUsage: cpuUsage,
                 memoryBytes: usage.residentBytes,
+                threadCount: usage.threadCount,
+                cpuTimeSeconds: Double(usage.cpuTimeNanoseconds) / 1_000_000_000,
+                uptimeSeconds: usage.uptimeSeconds,
+                state: usage.state,
                 tag: tag(for: usage.name)
             )
         }
@@ -255,7 +268,7 @@ final class SystemSampler: @unchecked Sendable {
                 }
                 return $0.cpuUsage > $1.cpuUsage
             }
-            .prefix(12)
+            .prefix(60)
             .map { $0 }
     }
 
@@ -547,7 +560,7 @@ final class SystemSampler: @unchecked Sendable {
         FanSnapshot(speedRPM: nil)
     }
 
-    private func processIDs() -> [Int32] {
+    private func processSummaries() -> [ProcessSummary] {
         var mib = [CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0]
         var length = 0
         let lengthResult = mib.withUnsafeMutableBufferPointer { buffer in
@@ -564,10 +577,22 @@ final class SystemSampler: @unchecked Sendable {
         }
         guard processResult == 0 else { return [] }
 
-        return processes.map(\.kp_proc.p_pid).filter { $0 > 0 }
+        return processes.compactMap { process -> ProcessSummary? in
+            let pid = process.kp_proc.p_pid
+            guard pid > 0 else { return nil }
+
+            let startTime = processStartDate(seconds: process.kp_proc.p_un.__p_starttime.tv_sec, microseconds: Int(process.kp_proc.p_un.__p_starttime.tv_usec))
+            return ProcessSummary(
+                pid: pid,
+                parentPID: process.kp_eproc.e_ppid > 0 ? process.kp_eproc.e_ppid : nil,
+                state: processState(process.kp_proc.p_stat),
+                startTime: startTime
+            )
+        }
     }
 
-    private func processUsage(pid: Int32) -> ProcessUsage? {
+    private func processUsage(summary: ProcessSummary, sampledAt: Date) -> ProcessUsage? {
+        let pid = summary.pid
         var nameBuffer = [CChar](repeating: 0, count: Int(MAXPATHLEN))
         let nameLength = nameBuffer.withUnsafeMutableBufferPointer { buffer in
             proc_name(pid, buffer.baseAddress, UInt32(buffer.count))
@@ -588,8 +613,41 @@ final class SystemSampler: @unchecked Sendable {
         return ProcessUsage(
             name: name,
             residentBytes: info.ri_resident_size,
-            cpuTimeNanoseconds: info.ri_user_time + info.ri_system_time
+            cpuTimeNanoseconds: info.ri_user_time + info.ri_system_time,
+            parentPID: summary.parentPID,
+            threadCount: processThreadCount(pid: pid),
+            uptimeSeconds: summary.startTime.map { sampledAt.timeIntervalSince($0) },
+            state: summary.state
         )
+    }
+
+    private func processThreadCount(pid: Int32) -> Int? {
+        var taskInfo = proc_taskinfo()
+        let byteCount = proc_pidinfo(pid, PROC_PIDTASKINFO, 0, &taskInfo, Int32(MemoryLayout<proc_taskinfo>.stride))
+        guard byteCount == MemoryLayout<proc_taskinfo>.stride else { return nil }
+        return Int(taskInfo.pti_threadnum)
+    }
+
+    private func processStartDate(seconds: Int, microseconds: Int) -> Date? {
+        guard seconds > 0 else { return nil }
+        return Date(timeIntervalSince1970: TimeInterval(seconds) + TimeInterval(microseconds) / 1_000_000)
+    }
+
+    private func processState(_ state: CChar) -> ProcessState {
+        switch Int32(state) {
+        case SRUN:
+            return .running
+        case SSLEEP:
+            return .sleeping
+        case SSTOP:
+            return .stopped
+        case SZOMB:
+            return .zombie
+        case SIDL:
+            return .idle
+        default:
+            return .unknown
+        }
     }
 
     private func tag(for processName: String) -> ProcessTag? {
@@ -621,6 +679,17 @@ private struct ProcessUsage {
     var name: String
     var residentBytes: UInt64
     var cpuTimeNanoseconds: UInt64
+    var parentPID: Int32?
+    var threadCount: Int?
+    var uptimeSeconds: TimeInterval?
+    var state: ProcessState
+}
+
+private struct ProcessSummary {
+    var pid: Int32
+    var parentPID: Int32?
+    var state: ProcessState
+    var startTime: Date?
 }
 
 private struct NetworkCounters {

@@ -166,19 +166,65 @@ extension ThermalState {
     }
 }
 
-extension ComputerSnapshot {
-    func uptimeText(language: AppLanguage) -> String {
-        let totalMinutes = max(Int(uptimeSeconds / 60), 0)
-        let days = totalMinutes / (24 * 60)
-        let hours = (totalMinutes % (24 * 60)) / 60
-        let minutes = totalMinutes % 60
+extension ProcessState {
+    func title(language: AppLanguage) -> String {
+        switch self {
+        case .running:
+            localized("运行中", "Running", language: language)
+        case .sleeping:
+            localized("休眠", "Sleeping", language: language)
+        case .stopped:
+            localized("已停止", "Stopped", language: language)
+        case .zombie:
+            localized("僵尸", "Zombie", language: language)
+        case .idle:
+            localized("空闲", "Idle", language: language)
+        case .unknown:
+            localized("未知", "Unknown", language: language)
+        }
+    }
+
+    func shortTitle(language: AppLanguage) -> String {
+        switch self {
+        case .running:
+            localized("运行", "Run", language: language)
+        case .sleeping:
+            localized("休眠", "Sleep", language: language)
+        case .stopped:
+            localized("停止", "Stop", language: language)
+        case .zombie:
+            localized("僵尸", "Zombie", language: language)
+        case .idle:
+            localized("空闲", "Idle", language: language)
+        case .unknown:
+            localized("未知", "Unknown", language: language)
+        }
+    }
+}
+
+extension TimeInterval {
+    func durationText(language: AppLanguage) -> String {
+        let totalSeconds = max(Int(self), 0)
+        let days = totalSeconds / 86_400
+        let hours = (totalSeconds % 86_400) / 3_600
+        let minutes = (totalSeconds % 3_600) / 60
+        let seconds = totalSeconds % 60
 
         if days > 0 {
-            return localized("\(days) 天 \(hours) 小时", "\(days)d \(hours)h", language: language)
+            return localized("\(days) 天 \(hours) 小时 \(minutes) 分钟 \(seconds) 秒", "\(days)d \(hours)h \(minutes)m \(seconds)s", language: language)
         }
         if hours > 0 {
             return localized("\(hours) 小时 \(minutes) 分钟", "\(hours)h \(minutes)m", language: language)
         }
-        return localized("\(minutes) 分钟", "\(minutes)m", language: language)
+        if minutes > 0 {
+            return localized("\(minutes) 分钟 \(seconds) 秒", "\(minutes)m \(seconds)s", language: language)
+        }
+        return localized("\(seconds) 秒", "\(seconds)s", language: language)
+    }
+}
+
+extension ComputerSnapshot {
+    func uptimeText(language: AppLanguage) -> String {
+        uptimeSeconds.durationText(language: language)
     }
 }

@@ -144,10 +144,24 @@ enum ThermalState: String {
 struct ProcessSnapshot: Identifiable {
     var id: Int32 { pid }
     var pid: Int32
+    var parentPID: Int32?
     var name: String
     var cpuUsage: Double
     var memoryBytes: UInt64
+    var threadCount: Int?
+    var cpuTimeSeconds: TimeInterval
+    var uptimeSeconds: TimeInterval?
+    var state: ProcessState
     var tag: ProcessTag?
+}
+
+enum ProcessState: String {
+    case running
+    case sleeping
+    case stopped
+    case zombie
+    case idle
+    case unknown
 }
 
 enum ProcessTag: String {

@@ -30,7 +30,7 @@ struct DesktopDashboardView: View {
             .background(DesktopPalette.background)
         }
         .navigationSplitViewStyle(.balanced)
-        .frame(minWidth: 1060, minHeight: 720)
+        .frame(minWidth: 1280, minHeight: 780)
     }
 }
 
@@ -73,11 +73,7 @@ private struct DesktopSidebar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(spacing: 10) {
-                Image(systemName: "waveform.path.ecg")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 34, height: 34)
-                    .background(DesktopPalette.info, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                PulseDockIconMark(size: 34)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("PulseDock")
                         .font(.system(size: 18, weight: .semibold))
@@ -174,30 +170,130 @@ private struct OverviewPage: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 14) {
                 PageHeader(
                     title: localized("主页", "Overview", language: language),
-                    subtitle: localized("先看当前状态，再看这台 Mac 的基础配置。进程和趋势留在详情页。", "Start with current status, then this Mac's system profile. Processes and trends live in detail pages.", language: language)
+                    subtitle: localized("先判断当前压力来源，再查看关键指标和这台 Mac 的基础配置。", "Start with current pressure, then review key metrics and this Mac's system profile.", language: language)
                 )
 
-                HStack(alignment: .top, spacing: 16) {
-                    HealthSummaryPanel(diagnosis: diagnosis, snapshot: snapshot, language: language)
-                        .frame(minWidth: 420)
-                    EvidencePanel(snapshot: snapshot, language: language)
-                        .frame(width: 300)
-                }
-
-                HStack(spacing: 12) {
-                    CompactMetricTile(title: "CPU", value: snapshot.cpuUsage.percentText, subtitle: "System total", icon: "cpu", color: DesktopPalette.good)
-                    CompactMetricTile(title: localized("内存", "Memory", language: language), value: snapshot.memory.usedRatio.percentText, subtitle: localized("已用 \(snapshot.memory.usedBytes.byteCount)", "\(snapshot.memory.usedBytes.byteCount) used", language: language), icon: "memorychip", color: DesktopPalette.notice)
-                    CompactMetricTile(title: "Swap", value: snapshot.memory.swapUsedBytes.byteCount, subtitle: localized("内存压力", "Memory pressure", language: language), icon: "arrow.triangle.2.circlepath", color: DesktopPalette.critical)
-                    CompactMetricTile(title: "Load Avg", value: snapshot.loadAverage.oneMinute.formatted(.number.precision(.fractionLength(2))), subtitle: localized("1 分钟负载", "1-minute load", language: language), icon: "speedometer", color: DesktopPalette.info)
-                }
+                OverviewStatusPanel(snapshot: snapshot, diagnosis: diagnosis, language: language)
+                OverviewContextStrip(snapshot: snapshot, language: language)
 
                 ComputerProfilePanel(computer: snapshot.computer, language: language)
             }
             .padding(22)
         }
+    }
+}
+
+private struct OverviewStatusPanel: View {
+    let snapshot: SystemSnapshot
+    let diagnosis: Diagnosis
+    let language: AppLanguage
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            VStack(alignment: .leading, spacing: 14) {
+                HealthSummaryPanel(diagnosis: diagnosis, snapshot: snapshot, language: language)
+                EvidencePanel(snapshot: snapshot, language: language)
+            }
+            .frame(minWidth: 460, maxWidth: .infinity, alignment: .topLeading)
+
+            ResourcePressurePanel(snapshot: snapshot, language: language)
+                .frame(width: 430)
+        }
+    }
+}
+
+private struct ResourcePressurePanel: View {
+    let snapshot: SystemSnapshot
+    let language: AppLanguage
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Label(localized("资源压力", "Resource Pressure", language: language), systemImage: "gauge.with.dots.needle.67percent")
+                    .font(.system(size: 16, weight: .semibold))
+                Spacer()
+                Text(snapshot.sampledAt.formatted(date: .omitted, time: .standard))
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+
+            VStack(spacing: 11) {
+                pressureRow(title: "CPU", value: snapshot.cpuUsage.percentText, progress: snapshot.cpuUsage, color: DesktopPalette.good, icon: "cpu")
+                pressureRow(title: localized("内存", "Memory", language: language), value: snapshot.memory.usedRatio.percentText, progress: snapshot.memory.usedRatio, color: DesktopPalette.notice, icon: "memorychip")
+                pressureRow(title: "Swap", value: snapshot.memory.swapUsedBytes.byteCount, progress: min(Double(snapshot.memory.swapUsedBytes) / Double(6 * UInt64.gibibytes), 1), color: DesktopPalette.critical, icon: "arrow.triangle.2.circlepath")
+                pressureRow(title: localized("磁盘", "Disk", language: language), value: snapshot.disk.totalBytesPerSecond.byteCount + "/s", progress: nil, color: DesktopPalette.poor, icon: "internaldrive")
+                pressureRow(title: localized("网络", "Network", language: language), value: (snapshot.network.downloadBytesPerSecond + snapshot.network.uploadBytesPerSecond).byteCount + "/s", progress: nil, color: DesktopPalette.info, icon: "network")
+            }
+        }
+        .padding(16)
+        .background(DesktopPalette.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private func pressureRow(title: String, value: String, progress: Double?, color: Color, icon: String) -> some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .foregroundStyle(color)
+                    .frame(width: 18)
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold))
+                Spacer()
+                Text(value)
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+            }
+
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.secondary.opacity(0.14))
+                    Capsule()
+                        .fill(color)
+                        .frame(width: proxy.size.width * CGFloat(progress.map { min(max($0, 0), 1) } ?? 0.18))
+                        .opacity(progress == nil ? 0.45 : 1)
+                }
+            }
+            .frame(height: 6)
+        }
+    }
+}
+
+private struct OverviewContextStrip: View {
+    let snapshot: SystemSnapshot
+    let language: AppLanguage
+
+    var body: some View {
+        HStack(spacing: 10) {
+            contextItem(localized("热状态", "Thermal", language: language), snapshot.thermal.state.title(language: language), "thermometer.medium", DesktopPalette.notice)
+            contextItem(localized("电源", "Power", language: language), snapshot.battery.powerSource.title(language: language), "bolt.fill", DesktopPalette.good)
+            contextItem(localized("今日下载", "Today Down", language: language), snapshot.network.todayDownloadedBytes.byteCount, "arrow.down.circle", DesktopPalette.info)
+            contextItem(localized("今日上传", "Today Up", language: language), snapshot.network.todayUploadedBytes.byteCount, "arrow.up.circle", DesktopPalette.good)
+            contextItem(localized("风扇", "Fan", language: language), snapshot.fan.speedRPM.map { "\($0) RPM" } ?? localized("不可用", "N/A", language: language), "fan", DesktopPalette.info)
+        }
+    }
+
+    private func contextItem(_ title: String, _ value: String, _ icon: String, _ color: Color) -> some View {
+        HStack(spacing: 9) {
+            Image(systemName: icon)
+                .foregroundStyle(color)
+                .frame(width: 18)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+        .background(DesktopPalette.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
 
@@ -209,7 +305,13 @@ private struct ProcessesPage: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            PageHeader(title: localized("进程", "Processes", language: language), subtitle: localized("按 CPU 和内存查看当前最可能影响响应的进程。", "Review processes most likely to affect responsiveness by CPU and memory.", language: language))
+            PageHeader(title: localized("进程", "Processes", language: language), subtitle: localized("按名称浏览进程，并查看 CPU、内存、状态、线程和运行时长。", "Browse processes by name and inspect CPU, memory, state, threads, and uptime.", language: language))
+
+            HStack(spacing: 10) {
+                ProcessSummaryTile(title: localized("进程数", "Processes", language: language), value: "\(filteredProcesses.count)", subtitle: localized("当前列表", "current list", language: language), icon: "list.bullet.rectangle")
+                ProcessSummaryTile(title: "CPU", value: topCPUText, subtitle: localized("列表最高", "highest in list", language: language), icon: "cpu")
+                ProcessSummaryTile(title: localized("内存", "Memory", language: language), value: topMemoryText, subtitle: localized("列表最高", "highest in list", language: language), icon: "memorychip")
+            }
 
             HStack(spacing: 7) {
                 Image(systemName: "magnifyingglass")
@@ -227,8 +329,9 @@ private struct ProcessesPage: View {
 
             HStack(alignment: .top, spacing: 16) {
                 ProcessTable(processes: filteredProcesses, selectedProcessID: $selectedProcessID, language: language)
+                    .frame(minWidth: 650, maxWidth: .infinity)
                 ProcessDetailPanel(process: selectedProcess, language: language)
-                    .frame(width: 300)
+                    .frame(width: 320)
             }
         }
         .padding(22)
@@ -262,6 +365,45 @@ private struct ProcessesPage: View {
 
     private var selectedProcess: ProcessSnapshot? {
         filteredProcesses.first { $0.pid == selectedProcessID } ?? filteredProcesses.first
+    }
+
+    private var topCPUText: String {
+        filteredProcesses.max(by: { $0.cpuUsage < $1.cpuUsage })?.cpuUsage.percentText ?? "0%"
+    }
+
+    private var topMemoryText: String {
+        filteredProcesses.max(by: { $0.memoryBytes < $1.memoryBytes })?.memoryBytes.byteCount ?? "0 KB"
+    }
+}
+
+private struct ProcessSummaryTile: View {
+    let title: String
+    let value: String
+    let subtitle: String
+    let icon: String
+
+    var body: some View {
+        HStack(spacing: 9) {
+            Image(systemName: icon)
+                .foregroundStyle(DesktopPalette.info)
+                .frame(width: 18)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.system(size: 16, weight: .semibold, design: .monospaced))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Text(subtitle)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
+        .background(DesktopPalette.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
 
@@ -479,7 +621,7 @@ private struct ComputerProfilePanel: View {
     let language: AppLanguage
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text(localized("电脑配置", "Mac Profile", language: language))
                     .font(.system(size: 16, weight: .semibold))
@@ -492,41 +634,63 @@ private struct ComputerProfilePanel: View {
                     .background(DesktopPalette.selectedFill, in: Capsule())
             }
 
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                profileItem(localized("设备名称", "Host Name", language: language), computer.hostName, "desktopcomputer")
-                profileItem(localized("机型标识", "Model", language: language), computer.modelIdentifier, "macbook")
-                profileItem(localized("芯片 / CPU", "Chip / CPU", language: language), computer.processorName, "cpu")
-                profileItem(localized("CPU 核心", "CPU Cores", language: language), localized("\(computer.physicalCoreCount) 物理核心 / \(computer.logicalCoreCount) 逻辑核心", "\(computer.physicalCoreCount) physical / \(computer.logicalCoreCount) logical", language: language), "circle.grid.cross")
-                profileItem(localized("统一内存", "Memory", language: language), computer.memoryBytes.byteCount, "memorychip")
-                profileItem(localized("系统版本", "macOS", language: language), "macOS \(computer.operatingSystemVersion) (\(computer.operatingSystemBuild))", "apple.logo")
-                profileItem(localized("运行时长", "Uptime", language: language), computer.uptimeText(language: language), "clock")
-                profileItem(localized("架构", "Architecture", language: language), computer.architecture, "terminal")
-                profileItem(localized("采样状态", "Sampling", language: language), localized("本机实时采集", "Local live sampling", language: language), "waveform.path.ecg")
+            HStack(spacing: 10) {
+                profileHeroItem(localized("芯片 / CPU", "Chip / CPU", language: language), computer.processorName, "cpu", DesktopPalette.info)
+                profileHeroItem(localized("统一内存", "Memory", language: language), computer.memoryBytes.byteCount, "memorychip", DesktopPalette.notice)
+                profileHeroItem(localized("CPU 核心", "CPU Cores", language: language), localized("\(computer.physicalCoreCount)P / \(computer.logicalCoreCount)L", "\(computer.physicalCoreCount)P / \(computer.logicalCoreCount)L", language: language), "circle.grid.cross", DesktopPalette.good)
+            }
+
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 0) {
+                profileRow(localized("设备名称", "Host Name", language: language), computer.hostName, "desktopcomputer")
+                profileRow(localized("机型标识", "Model", language: language), computer.modelIdentifier, "macbook")
+                profileRow(localized("系统版本", "macOS", language: language), "macOS \(computer.operatingSystemVersion) (\(computer.operatingSystemBuild))", "apple.logo")
+                profileRow(localized("运行时长", "Uptime", language: language), computer.uptimeText(language: language), "clock")
+                profileRow(localized("架构", "Architecture", language: language), computer.architecture, "terminal")
+                profileRow(localized("采样状态", "Sampling", language: language), localized("本机实时采集", "Local live sampling", language: language), "waveform.path.ecg")
             }
         }
         .padding(16)
         .background(DesktopPalette.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 
-    private func profileItem(_ title: String, _ value: String, _ icon: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
+    private func profileHeroItem(_ title: String, _ value: String, _ icon: String, _ color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
             Image(systemName: icon)
-                .foregroundStyle(DesktopPalette.info)
-                .frame(width: 20)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Text(value)
-                    .font(.system(size: 13, weight: .medium))
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.75)
-            }
-            Spacer(minLength: 0)
+                .foregroundStyle(color)
+                .font(.system(size: 15, weight: .semibold))
+            Text(value)
+                .font(.system(size: 17, weight: .semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
         }
         .padding(12)
-        .frame(maxWidth: .infinity, minHeight: 72, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 92, alignment: .topLeading)
         .background(DesktopPalette.selectedFill, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private func profileRow(_ title: String, _ value: String, _ icon: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 9) {
+            Image(systemName: icon)
+                .foregroundStyle(DesktopPalette.info)
+                .frame(width: 18)
+            Text(title)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 82, alignment: .leading)
+            Text(value)
+                .font(.system(size: 13, weight: .medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 9)
+        .padding(.horizontal, 2)
+        .overlay(alignment: .bottom) {
+            Divider().opacity(0.25)
+        }
     }
 }
 
@@ -534,61 +698,63 @@ private struct AboutPage: View {
     let language: AppLanguage
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            PageHeader(
-                title: localized("关于", "About", language: language),
-                subtitle: localized("PulseDock 是一个本地优先的 macOS 菜单栏性能监控工具。", "PulseDock is a local-first macOS menu bar performance monitor.", language: language)
-            )
+        ScrollView {
+            VStack(alignment: .center, spacing: 18) {
+                VStack(spacing: 5) {
+                    Text(localized("关于", "About", language: language))
+                        .font(.system(size: 25, weight: .semibold))
+                    Text(localized("PulseDock 是一个本地优先的 macOS 菜单栏性能监控工具。", "PulseDock is a local-first macOS menu bar performance monitor.", language: language))
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
 
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 14) {
-                    Image(systemName: "waveform.path.ecg")
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 48, height: 48)
-                        .background(DesktopPalette.info, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .center, spacing: 16) {
+                    VStack(spacing: 10) {
+                        PulseDockIconMark(size: 56)
                         Text("PulseDock")
                             .font(.system(size: 22, weight: .semibold))
+                            .foregroundStyle(.primary)
                         Text(localized("版本 0.1.0", "Version 0.1.0", language: language))
                             .font(.caption.monospaced())
                             .foregroundStyle(.secondary)
                     }
-                    Spacer()
+
+                    Divider()
+
+                    aboutRow(localized("定位", "Purpose", language: language), localized("解释当前卡顿来源，并展示必要的 CPU、内存、磁盘、网络、进程和传感器指标。", "Explains current slowdowns and shows essential CPU, memory, disk, network, process, and sensor metrics.", language: language), "scope")
+                    aboutRow(localized("运行方式", "Run Mode", language: language), localized("菜单栏常驻；打开桌面窗口时显示程序坞图标，关闭窗口后回到菜单栏模式。", "Stays in the menu bar; shows a Dock icon while the desktop window is open, then returns to menu bar mode after the window closes.", language: language), "menubar.dock.rectangle")
+                    aboutRow(localized("隐私", "Privacy", language: language), localized("无账号、无遥测、无上传；性能数据只在本机采集和展示。", "No account, no telemetry, no upload; performance data is collected and shown locally.", language: language), "lock.shield")
                 }
-
-                Divider()
-
-                aboutRow(localized("定位", "Purpose", language: language), localized("解释当前卡顿来源，并展示必要的 CPU、内存、磁盘、网络、进程和传感器指标。", "Explains current slowdowns and shows essential CPU, memory, disk, network, process, and sensor metrics.", language: language), "scope")
-                aboutRow(localized("运行方式", "Run Mode", language: language), localized("默认作为菜单栏应用运行，不在程序坞显示图标。", "Runs as a menu bar app by default and does not show a Dock icon.", language: language), "menubar.rectangle")
-                aboutRow(localized("隐私", "Privacy", language: language), localized("无账号、无遥测、无上传；性能数据只在本机采集和展示。", "No account, no telemetry, no upload; performance data is collected and shown locally.", language: language), "lock.shield")
+                .padding(16)
+                .frame(maxWidth: 640, alignment: .center)
+                .background(DesktopPalette.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
-            .padding(16)
-            .frame(maxWidth: 720, alignment: .leading)
-            .background(DesktopPalette.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-
-            Spacer()
+            .padding(22)
+            .frame(maxWidth: .infinity, minHeight: 560, alignment: .top)
         }
-        .padding(22)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private func aboutRow(_ title: String, _ body: String, _ icon: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
+        VStack(spacing: 6) {
             Image(systemName: icon)
                 .foregroundStyle(DesktopPalette.info)
-                .frame(width: 22)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.system(size: 14, weight: .semibold))
-                Text(body)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+                .frame(width: 24, height: 24)
+            Text(title)
+                .font(.system(size: 14, weight: .semibold))
+                .multilineTextAlignment(.center)
+            Text(body)
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 4)
     }
 }
-
 private struct DesktopSettingsPage: View {
     @EnvironmentObject private var appModel: AppModel
     @State private var draft = AppSettings.load()
@@ -923,9 +1089,7 @@ private struct HealthSummaryPanel: View {
             }
             Spacer()
         }
-        .padding(16)
-        .frame(minHeight: 154)
-        .background(DesktopPalette.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .frame(minHeight: 132)
     }
 }
 
@@ -934,29 +1098,41 @@ private struct EvidencePanel: View {
     let language: AppLanguage
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(localized("证据", "Evidence", language: language))
-                .font(.system(size: 16, weight: .semibold))
-            evidence(localized("内存压力", "Memory pressure", language: language), snapshot.memory.pressure.rawValue)
-            evidence(localized("压缩内存", "Compressed", language: language), snapshot.memory.compressedBytes.byteCount)
-            evidence("Swap", snapshot.memory.swapUsedBytes.byteCount)
-            evidence(localized("最高进程", "Top process", language: language), snapshot.processes.first?.name ?? localized("不可用", "Unavailable", language: language))
+        VStack(alignment: .leading, spacing: 9) {
+            Label(localized("诊断依据", "Evidence", language: language), systemImage: "checklist.checked")
+                .font(.system(size: 14, weight: .semibold))
+
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
+                evidence(localized("内存压力", "Memory pressure", language: language), snapshot.memory.pressure.rawValue, DesktopPalette.notice)
+                evidence(localized("压缩内存", "Compressed", language: language), snapshot.memory.compressedBytes.byteCount, DesktopPalette.poor)
+                evidence("Swap", snapshot.memory.swapUsedBytes.byteCount, DesktopPalette.critical)
+                evidence(localized("最高进程", "Top process", language: language), snapshot.processes.first?.name ?? localized("不可用", "Unavailable", language: language), DesktopPalette.info)
+            }
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, minHeight: 154, alignment: .topLeading)
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(DesktopPalette.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 
-    private func evidence(_ title: String, _ value: String) -> some View {
-        HStack {
+    private func evidence(_ title: String, _ value: String, _ color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
             Text(title)
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
-            Spacer()
             Text(value)
-                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .font(.system(size: 13, weight: .semibold, design: .monospaced))
                 .lineLimit(1)
+                .minimumScaleFactor(0.72)
         }
-        .font(.system(size: 13))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, minHeight: 54, alignment: .leading)
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(color)
+                .frame(width: 3)
+        }
+        .background(DesktopPalette.selectedFill, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
 
@@ -982,9 +1158,9 @@ private struct CompactMetricTile: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
-        .padding(13)
-        .frame(maxWidth: .infinity, minHeight: 112, alignment: .topLeading)
-        .background(DesktopPalette.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, minHeight: 74, alignment: .topLeading)
     }
 }
 
@@ -1004,7 +1180,7 @@ private struct ProcessPreview: View {
             }
 
             ForEach(processes.prefix(5)) { process in
-                ProcessRowLine(process: process)
+                ProcessRowLine(process: process, language: language)
             }
         }
         .padding(16)
@@ -1021,10 +1197,11 @@ private struct ProcessTable: View {
         VStack(spacing: 0) {
             HStack {
                 tableHeader(localized("进程", "Process", language: language), width: nil, alignment: .leading)
-                tableHeader("PID", width: 70, alignment: .trailing)
-                tableHeader("CPU", width: 80, alignment: .trailing)
-                tableHeader(localized("内存", "Memory", language: language), width: 110, alignment: .trailing)
-                tableHeader(localized("标签", "Tag", language: language), width: 80, alignment: .trailing)
+                tableHeader("PID", width: 64, alignment: .trailing)
+                tableHeader(localized("状态", "State", language: language), width: 64, alignment: .trailing)
+                tableHeader("CPU", width: 66, alignment: .trailing)
+                tableHeader(localized("内存", "Memory", language: language), width: 96, alignment: .trailing)
+                tableHeader(localized("标签", "Tag", language: language), width: 66, alignment: .trailing)
             }
             .padding(.horizontal, 14)
             .frame(height: 34)
@@ -1033,15 +1210,20 @@ private struct ProcessTable: View {
 
             ScrollView {
                 LazyVStack(spacing: 0) {
-                    ForEach(processes.prefix(24)) { process in
+                    ForEach(processes.prefix(50)) { process in
                         Button {
                             selectedProcessID = process.pid
                         } label: {
-                            ProcessRowLine(process: process, showPID: true)
+                            ProcessRowLine(process: process, language: language, showPID: true)
                                 .padding(.horizontal, 14)
-                                .background(selectedProcessID == process.pid ? DesktopPalette.selectedFill : Color.clear)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
                         }
+                        .frame(maxWidth: .infinity)
                         .buttonStyle(.plain)
+                        .background(selectedProcessID == process.pid ? DesktopPalette.selectedFill : Color.clear)
+                        .contentShape(Rectangle())
+                        .focusable(false)
                         Divider().opacity(0.4)
                     }
                 }
@@ -1050,11 +1232,17 @@ private struct ProcessTable: View {
         .background(DesktopPalette.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 
+    @ViewBuilder
     private func tableHeader(_ title: String, width: CGFloat?, alignment: Alignment) -> some View {
-        Text(title)
+        let text = Text(title)
             .font(.caption.weight(.semibold))
             .foregroundStyle(.secondary)
-            .frame(maxWidth: width == nil ? .infinity : width, alignment: alignment)
+
+        if let width {
+            text.frame(width: width, alignment: alignment)
+        } else {
+            text.frame(maxWidth: .infinity, alignment: alignment)
+        }
     }
 }
 
@@ -1064,30 +1252,46 @@ private struct ProcessDetailPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(localized("进程详情", "Process Details", language: language))
-                .font(.system(size: 16, weight: .semibold))
-
             if let process {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 14) {
                     HStack(spacing: 10) {
                         Image(systemName: processIcon(for: process))
                             .foregroundStyle(DesktopPalette.info)
-                            .frame(width: 28, height: 28)
+                            .frame(width: 36, height: 36)
                             .background(DesktopPalette.selectedFill, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
                         VStack(alignment: .leading, spacing: 2) {
                             Text(process.name)
-                                .font(.system(size: 15, weight: .semibold))
+                                .font(.system(size: 17, weight: .semibold))
                                 .lineLimit(1)
                                 .truncationMode(.middle)
-                            Text("PID \(process.pid)")
+                            Text("PID \(process.pid) · \(process.state.title(language: language))")
                                 .font(.caption.monospaced())
                                 .foregroundStyle(.secondary)
                         }
+                        Spacer()
+                        Text(process.tag?.rawValue ?? "APP")
+                            .font(.caption2.monospaced())
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(DesktopPalette.selectedFill, in: Capsule())
                     }
 
-                    detailRow("CPU", process.cpuUsage.percentText)
-                    detailRow(localized("内存", "Memory", language: language), process.memoryBytes.byteCount)
-                    detailRow(localized("标签", "Tag", language: language), process.tag?.rawValue ?? "APP")
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
+                        detailMetric("CPU", process.cpuUsage.percentText, "cpu")
+                        detailMetric(localized("内存", "Memory", language: language), process.memoryBytes.byteCount, "memorychip")
+                        detailMetric(localized("线程", "Threads", language: language), process.threadCount.map(String.init) ?? unavailableText, "square.stack.3d.up")
+                        detailMetric(localized("运行", "Uptime", language: language), process.uptimeSeconds?.durationText(language: language) ?? unavailableText, "clock")
+                    }
+
+                    VStack(spacing: 8) {
+                        detailRow(localized("父进程", "Parent PID", language: language), process.parentPID.map(String.init) ?? unavailableText)
+                        detailRow(localized("状态", "State", language: language), process.state.title(language: language))
+                        detailRow(localized("累计 CPU", "CPU Time", language: language), process.cpuTimeSeconds.durationText(language: language))
+                        detailRow(localized("进程标签", "Process Tag", language: language), process.tag?.rawValue ?? "APP")
+                    }
+                    .padding(10)
+                    .background(DesktopPalette.selectedFill, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
                     Text(recommendation(for: process))
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
@@ -1113,6 +1317,27 @@ private struct ProcessDetailPanel: View {
         }
         .padding(16)
         .background(DesktopPalette.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private var unavailableText: String {
+        localized("不可用", "N/A", language: language)
+    }
+
+    private func detailMetric(_ title: String, _ value: String, _ icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Image(systemName: icon)
+                .foregroundStyle(DesktopPalette.info)
+            Text(value)
+                .font(.system(size: 16, weight: .semibold, design: .monospaced))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 86, alignment: .topLeading)
+        .background(DesktopPalette.selectedFill, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 
     private func detailRow(_ title: String, _ value: String) -> some View {
@@ -1243,6 +1468,7 @@ private struct DesktopTrendLine: View {
 
 private struct ProcessRowLine: View {
     let process: ProcessSnapshot
+    let language: AppLanguage
     var showPID = false
 
     var body: some View {
@@ -1257,22 +1483,29 @@ private struct ProcessRowLine: View {
             Spacer()
             if showPID {
                 Text("\(process.pid)")
-                    .frame(width: 70, alignment: .trailing)
+                    .frame(width: 64, alignment: .trailing)
                     .foregroundStyle(.secondary)
+            Text(process.state.shortTitle(language: language))
+                .font(.caption2.monospaced())
+                .frame(width: 64, alignment: .trailing)
+                .foregroundStyle(process.state.color)
             }
             Text(process.cpuUsage.percentText)
                 .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                .frame(width: 80, alignment: .trailing)
+                .frame(width: 66, alignment: .trailing)
             Text(process.memoryBytes.byteCount)
                 .font(.system(size: 13, weight: .medium, design: .monospaced))
-                .frame(width: 110, alignment: .trailing)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+                .frame(width: 96, alignment: .trailing)
             Text(process.tag?.rawValue ?? "APP")
                 .font(.caption2.monospaced())
-                .frame(width: 70, alignment: .center)
+                .frame(width: 58, alignment: .center)
                 .padding(.vertical, 4)
                 .background(DesktopPalette.selectedFill, in: Capsule())
         }
         .frame(height: 38)
+        .contentShape(Rectangle())
     }
 
     private var icon: String {
@@ -1284,6 +1517,23 @@ private struct ProcessRowLine: View {
         case .node, .codex: "chevron.left.forwardslash.chevron.right"
         case .system: "gearshape.2"
         case nil: "app"
+        }
+    }
+}
+
+private extension ProcessState {
+    var color: Color {
+        switch self {
+        case .running:
+            DesktopPalette.good
+        case .sleeping, .idle:
+            .secondary
+        case .stopped:
+            DesktopPalette.notice
+        case .zombie:
+            DesktopPalette.critical
+        case .unknown:
+            DesktopPalette.info
         }
     }
 }
